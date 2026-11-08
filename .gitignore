@@ -18,3 +18,9 @@ env/
 
 # macOS
 .DS_Store
+
+#db
+long_term_memory_db
+chromadb
+
+

@@ -61,11 +61,48 @@ class JudgeEvaluation(BaseModel):
     instructions_followed: bool = Field(description="Whether prompt instructions were followed")
     explanation: str = Field(description="Brief explanation of the evaluation")
 
+class RetrievalEvaluationReport(BaseModel):
+    """Judgment of whether retrieved documents can answer a question."""
+    useful: bool = Field(
+        description="Whether the retrieved documents provide enough evidence to answer"
+    )
+    description: str = Field(
+        description="Why the documents are or are not sufficient"
+    )
+
 class AgentEvaluator:
     """Comprehensive agent evaluation framework"""
     
     def __init__(self):
         self.llm_judge = LLM(model="gpt-4o-mini")
+    
+    def evaluate_retrieval(
+        self,
+        question: str,
+        retrieved_docs: List[Dict[str, Any]],
+    ) -> BaseModel:
+        """Judge whether retrieved documents provide enough evidence to answer."""
+        judge_prompt = f"""
+        Determine whether the retrieved documents contain enough evidence to answer
+        the user's question. Judge only the provided documents; do not use outside
+        knowledge. If the documents are empty, irrelevant, or missing key facts,
+        mark them as not useful and explain what is missing.
+
+        User question:
+        {question}
+
+        Retrieved documents:
+        {json.dumps(retrieved_docs, ensure_ascii=False)}
+        """
+
+        response = self.llm_judge.invoke(
+            input=judge_prompt,
+            response_format=RetrievalEvaluationReport,
+        )
+
+        parser = PydanticOutputParser(model_class=RetrievalEvaluationReport)
+        parsed = parser.parse(response)
+        return parsed
     
     def evaluate_final_response(self, 
                           test_case: TestCase, 
